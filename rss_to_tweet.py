@@ -46,11 +46,21 @@ def save_posted_link(link):
 def fetch_latest_article(feed_url):
     feed = feedparser.parse(feed_url)
     if not feed.entries:
-        return None
-    entry = feed.entries[0]
-    title = entry.title
-    link = entry.link
-    return f"{title}\n{link}"
+        return None, None, None
+
+    posted_links = load_posted_links()
+
+    for entry in feed.entries:
+        title = entry.title
+        link = entry.link
+
+        if link not in posted_links:
+            comment = random.choice(comment_templates)
+            full_tweet = f"{comment}\n{title}\n{link}"
+            return title, link, full_tweet
+
+    return None, None, None
+
 
 # Post to X
 def post_to_x(text):
@@ -62,19 +72,18 @@ def post_to_x(text):
 if __name__ == "__main__":
     print("Running RSS to X integration...")
 
-    tweet = fetch_latest_article(FEED_URL)
+    title, link, tweet = fetch_latest_article(FEED_URL)
     if tweet:
-        link = tweet.split("\n")[-1]
-        posted_links = load_posted_links()
+        print(f"Tweet content:\n{tweet}")
+        status, result = post_to_x(tweet)
+        print(f"Tweet status: {status}")
+        print(result)
 
-        if link in posted_links:
-            print("Article already posted. Skipping.")
+        if status == 201 or "duplicate content" in result.lower():
+            save_posted_link(link)
+            print("Link recorded.")
         else:
-            print(f"Tweet content:\n{tweet}")
-            status, result = post_to_x(tweet)
-            print(f"Tweet status: {status}")
-            print(result)
+            print("Tweet failed and not recorded.")
+    else:
+        print("No new articles found to post.")
 
-            # Save only on success or already posted error
-            if status == 201 or "duplicate content" in result.lower():
-                save_posted_link(link)
