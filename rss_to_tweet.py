@@ -97,7 +97,8 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
     print("Running RSS to X integration...")
-
+    
+    random.shuffle(FEED_URLS)
     title, link, tweet = fetch_latest_article(FEED_URLS)
     if tweet:
         if args.dry_run:
