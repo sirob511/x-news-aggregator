@@ -18,8 +18,21 @@ ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 ACCESS_TOKEN_SECRET = os.getenv("ACCESS_TOKEN_SECRET")
 
 # RSS feed URL
-FEED_URL = "https://www.infoq.com/feed/"
+#FEED_URL = "https://www.infoq.com/feed/"
 #FEED_URL = "https://dev.to/t/rss"
+
+FEED_URLS = [
+    "https://netflixtechblog.com/feed",
+    "https://www.wired.com/feed/rss",
+    "https://techcrunch.com/feed/",
+    "https://aws.amazon.com/blogs/aws/feed/",
+    "http://highscalability.com/blog/rss.xml",
+    "https://cloud.google.com/blog/rss/",
+    "https://azure.microsoft.com/en-us/blog/feed/",
+    "https://www.thoughtspot.com/blog/feed/",
+    "https://hnrss.org/frontpage",           # now first
+    "https://www.infoq.com/feed/"            # now second
+]
 
 comment_templates = [
     "Interesting read on system architecture:",
@@ -45,26 +58,27 @@ def save_posted_link(link):
 
 
 # Fetch latest article
-def fetch_latest_article(feed_url):
-    feed = feedparser.parse(feed_url)
-    if not feed.entries:
-        return None, None, None
-
+def fetch_latest_article(feed_urls):
     posted_links = load_posted_links()
 
-    for entry in feed.entries:
-        title = entry.title
-        link = entry.link
+    for feed_url in feed_urls:
+        feed = feedparser.parse(feed_url)
+        if not feed.entries:
+            continue
 
-        # Clean common prefixes
-        for prefix in ["Presentation: ", "Article: ", "News: "]:
-            if title.startswith(prefix):
-                title = title[len(prefix):]
+        for entry in feed.entries:
+            title = entry.title
+            link = entry.link
 
-        if link not in posted_links:
-            comment = random.choice(comment_templates)
-            full_tweet = f"{comment} {title}\n{link}"
-            return title, link, full_tweet
+            # Clean common prefixes
+            for prefix in ["Presentation: ", "Article: ", "News: "]:
+                if title.startswith(prefix):
+                    title = title[len(prefix):]
+
+            if link not in posted_links:
+                comment = random.choice(comment_templates)
+                full_tweet = f"{comment} {title}\n{link}"
+                return title, link, full_tweet
 
     return None, None, None
 
@@ -84,7 +98,7 @@ args = parser.parse_args()
 if __name__ == "__main__":
     print("Running RSS to X integration...")
 
-    title, link, tweet = fetch_latest_article(FEED_URL)
+    title, link, tweet = fetch_latest_article(FEED_URLS)
     if tweet:
         if args.dry_run:
             print("Dry run: not posting to X.")
