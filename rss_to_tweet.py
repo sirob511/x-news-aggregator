@@ -6,6 +6,7 @@ from requests_oauthlib import OAuth1
 import random
 import json
 from pathlib import Path
+import argparse
 
 # Load env vars
 load_dotenv()
@@ -18,6 +19,7 @@ ACCESS_TOKEN_SECRET = os.getenv("ACCESS_TOKEN_SECRET")
 
 # RSS feed URL
 FEED_URL = "https://www.infoq.com/feed/"
+#FEED_URL = "https://dev.to/t/rss"
 
 comment_templates = [
     "Interesting read on system architecture:",
@@ -54,9 +56,14 @@ def fetch_latest_article(feed_url):
         title = entry.title
         link = entry.link
 
+        # Clean common prefixes
+        for prefix in ["Presentation: ", "Article: ", "News: "]:
+            if title.startswith(prefix):
+                title = title[len(prefix):]
+
         if link not in posted_links:
             comment = random.choice(comment_templates)
-            full_tweet = f"{comment}\n{title}\n{link}"
+            full_tweet = f"{comment} {title}\n{link}"
             return title, link, full_tweet
 
     return None, None, None
@@ -69,21 +76,29 @@ def post_to_x(text):
     response = requests.post(url, json={"text": text}, auth=auth)
     return response.status_code, response.text
 
+# Parse CLI arguments
+parser = argparse.ArgumentParser(description="Curated Digest Bot")
+parser.add_argument("--dry-run", action="store_true", help="Print tweet but do not post")
+args = parser.parse_args()
+
 if __name__ == "__main__":
     print("Running RSS to X integration...")
 
     title, link, tweet = fetch_latest_article(FEED_URL)
     if tweet:
-        print(f"Tweet content:\n{tweet}")
-        status, result = post_to_x(tweet)
-        print(f"Tweet status: {status}")
-        print(result)
-
-        if status == 201 or "duplicate content" in result.lower():
-            save_posted_link(link)
-            print("Link recorded.")
+        if args.dry_run:
+            print("Dry run: not posting to X.")
+            print(f"Preview tweet:\n{tweet}")
         else:
-            print("Tweet failed and not recorded.")
+            status, result = post_to_x(tweet)
+            print(f"Tweet status: {status}")
+            print(result)
+
+            if status == 201 or "duplicate content" in result.lower():
+                save_posted_link(link)
+                print("Link recorded.")
+            else:
+                print("Tweet failed and not recorded.")
     else:
         print("No new articles found to post.")
 
